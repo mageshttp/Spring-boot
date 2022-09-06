@@ -1,0 +1,126 @@
+plugins {
+    id 'org.springframework.boot' version '2.2.5.RELEASE'
+    id 'io.spring.dependency-management' version '1.0.9.RELEASE'
+    id "org.sonarqube" version "2.8"
+    id 'java'
+    id 'jacoco'
+    id 'checkstyle'
+    id 'net.researchgate.release' version '2.6.0'
+}
+
+group = 'me.jysh'
+sourceCompatibility = '11'
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.postgresql:postgresql:42.2.12'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.testcontainers:testcontainers:1.13.0'
+    testImplementation 'org.testcontainers:postgresql:1.13.0'
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+    }
+}
+
+release {
+    failOnUpdateNeeded = false
+    failOnCommitNeeded = false
+    failOnUnversionedFiles = false
+    failOnSnapshotDependencies = false
+    tagTemplate = '$version'
+    newVersionCommitMessage = 'Update Development Version [ci skip]'
+    tagCommitMessage = 'Tag with Released Version [ci skip]'
+    preTagCommitMessage = 'Process Gradle Release [ci skip]'
+    versionPropertyFile = 'gradle.properties'
+
+    git {
+        requireBranch = ''
+        pushToRemote = 'origin'
+        pushToBranchPrefix = ''
+        commitVersionFileOnly = false
+        signTag = false
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.5"
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled true
+        csv.enabled false
+        html.enabled true
+        html.destination file("$buildDir/reports/jacoco")
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            enabled = true
+            limit {
+                counter = 'BRANCH'
+                minimum = 0.80
+            }
+            excludes = []
+        }
+
+        rule {
+            enabled = true
+            limit {
+                counter = 'LINE'
+                minimum = 0.80
+            }
+            excludes = []
+        }
+    }
+}
+
+sonarqube {
+    properties {
+        property "sonar.projectKey", "codeghoul_spring-cicd-demo"
+        property "sonar.organization", "codeghoul"
+        property "sonar.host.url", "https://sonarcloud.io"
+        property "sonar.coverage.jacoco.xmlReportPaths", "${rootProject.buildDir}/reports/jacoco/test/jacocoTestReport.xml"
+    }
+}
+
+checkstyle {
+    toolVersion = '8.12'
+    configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
+}
+
+checkstyleMain {
+    source = 'src/main/java'
+}
+checkstyleTest {
+    source = 'src/test/java'
+}
+
+tasks.withType(Checkstyle) {
+    reports {
+        xml.enabled false
+        html.enabled true
+    }
+}
+
+test.finalizedBy jacocoTestReport
+jacocoTestCoverageVerification.dependsOn jacocoTestReport
+check.dependsOn jacocoTestCoverageVerification
+
+test {
+    useJUnitPlatform()
+}
